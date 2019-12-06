@@ -19,7 +19,7 @@ sudo usermod -a -G plugdev $USER
 
 $ platformio lib install 13 1513 6265
 
-13 -
-1513 - OLED
+13 - GFX
+153 - OLED
 6265 - PMS7003
 
