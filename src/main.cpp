@@ -1,43 +1,64 @@
-#include "WiFi.h"
+#include <WiFi.h>
+#include <HTTPSServer.hpp>
+#include <SSLCert.hpp>
+#include <HTTPRequest.hpp>
+#include <HTTPResponse.hpp>
 
-void setup()
-{
-    Serial.begin(9600);
+using namespace httpsserver;
 
-    // Set WiFi to station mode and disconnect from an AP 
-    // if it was previously connected
-    WiFi.mode(WIFI_STA);
-    WiFi.disconnect();
-    delay(100);
+const char* ssid = CONFIG_WIFI_SSID;
+const char* password = CONFIG_WIFI_PASSWORD;
+  
+SSLCert * cert;
+HTTPSServer * secureServer;
+   
+void setup() {
+  Serial.begin(9600);
+  Serial.println("Creating certificate...");
+     
+  cert = new SSLCert();
+  int createCertResult = createSelfSignedCert(
+    *cert, KEYSIZE_2048, "CN=myesp.local,O=acme,C=US");
+     
+  if (createCertResult != 0) {
+    Serial.printf("Error generating certificate");
+    return; 
+  }
+  Serial.println("Certificate created with success");
 
-    Serial.println("Setup done");
+  WiFi.begin(ssid, p4ss);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.println("Connecting to WiFi..");
+  }  
+    
+  Serial.println(WiFi.localIP());
+  
+  secureServer = new HTTPSServer(cert);
+   
+  ResourceNode * notFoundRoute = new ResourceNode("/notfound", "GET", [](HTTPRequest * req, HTTPResponse * res){
+    res->setStatusCode(404);
+    res->println("Not found");
+  });
+ 
+  ResourceNode * createdRoute = new ResourceNode("/created", "GET", [](HTTPRequest * req, HTTPResponse * res){
+    res->setStatusCode(201);
+    res->println("Created");
+  });
+   
+  secureServer->registerNode(notFoundRoute);
+  secureServer->registerNode(createdRoute);
+ 
+  secureServer->start();
+     
+  if (secureServer->isRunning()) {
+    Serial.println("Server ready");
+  } else {
+    Serial.println("Server could not be started");
+  }
 }
-
-void loop()
-{
-    Serial.println("scan start");
-
-    // WiFi.scanNetworks will return the number of networks found
-    int n = WiFi.scanNetworks();
-    Serial.println("scan done");
-    if (n == 0) {
-        Serial.println("no networks found");
-    } else {
-        Serial.print(n);
-        Serial.println(" networks found");
-        for (int i = 0; i < n; ++i) {
-            // Print SSID and RSSI for each network found
-            Serial.print(i + 1);
-            Serial.print(": ");
-            Serial.print(WiFi.SSID(i));
-            Serial.print(" (");
-            Serial.print(WiFi.RSSI(i));
-            Serial.print(")");
-            Serial.println((WiFi.encryptionType(i) == WIFI_AUTH_OPEN)?" ":"*");
-            delay(10);
-        }
-    }
-    Serial.println("");
-
-    delay(5000);
+   
+void loop() {
+  secureServer->loop();  
+  delay(10);
 }
