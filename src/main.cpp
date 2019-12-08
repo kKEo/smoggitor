@@ -1,16 +1,11 @@
 #include <WiFi.h>
-#include <HTTPServer.hpp>
-#include <HTTPRequest.hpp>
-#include <HTTPResponse.hpp>
+#include <HTTPClient.h>
 
-using namespace httpsserver;
 using namespace std;
 
 const char* ssid = CONFIG_WIFI_SSID;
 const char* password = CONFIG_WIFI_PASSWORD;
   
-HTTPServer * httpServer;
-   
 void setup() {
   Serial.begin(9600);
 
@@ -19,37 +14,31 @@ void setup() {
     delay(1000);
     Serial.println("Connecting to WiFi..");
   }  
-    
   Serial.println(WiFi.localIP());
-  
-  httpServer = new HTTPServer();
-
-  ResourceNode * notFoundRoute = new ResourceNode("/notfound", "GET", [](HTTPRequest * req, HTTPResponse * res){
-    res->setStatusCode(404);
-    res->println("Not found");
-  });
- 
-  ResourceNode * createdRoute = new ResourceNode("/created", "GET", [](HTTPRequest * req, HTTPResponse * res){
-    const string status = req->getParams()->getRequestParameter("status");
-    res->setStatusCode(201);
-    res->setHeader("Content-Type", "application/json");
-    string response =  "{\"status\": \"" + status + "\"}";
-    res->printStd(response);
-  });
-   
-  httpServer->registerNode(notFoundRoute);
-  httpServer->registerNode(createdRoute);
- 
-  httpServer->start();
-     
-  if (httpServer->isRunning()) {
-    Serial.println("Server ready");
-  } else {
-    Serial.println("Server could not be started");
-  }
 }
    
 void loop() {
-  httpServer->loop();  
-  delay(10);
+ if (WiFi.status()== WL_CONNECTED) {
+   HTTPClient http;   
+
+   http.begin("http://jsonplaceholder.typicode.com/posts");
+   http.addHeader("Content-Type", "text/plain");
+
+  int httpResponseCode = http.POST("POSTING from ESP32 (kKEo)"); 
+  if (httpResponseCode>0) {
+    String response = http.getString();  
+    Serial.println(httpResponseCode);   
+    Serial.println(response);
+  } else {
+    Serial.print("Error on sending POST: ");
+    Serial.println(httpResponseCode);
+  }
+ 
+   http.end();
+ } else {
+    Serial.println("Error in WiFi connection");   
+ }
+ 
+  delay(10000);
+ 
 }
