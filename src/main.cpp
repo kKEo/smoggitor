@@ -1,5 +1,5 @@
 #include <WiFi.h>
-#include <HTTPSServer.hpp>
+#include <HTTPServer.hpp>
 #include <SSLCert.hpp>
 #include <HTTPRequest.hpp>
 #include <HTTPResponse.hpp>
@@ -9,24 +9,12 @@ using namespace httpsserver;
 const char* ssid = CONFIG_WIFI_SSID;
 const char* password = CONFIG_WIFI_PASSWORD;
   
-SSLCert * cert;
-HTTPSServer * secureServer;
+HTTPServer * httpServer;
    
 void setup() {
   Serial.begin(9600);
-  Serial.println("Creating certificate...");
-     
-  cert = new SSLCert();
-  int createCertResult = createSelfSignedCert(
-    *cert, KEYSIZE_2048, "CN=myesp.local,O=acme,C=US");
-     
-  if (createCertResult != 0) {
-    Serial.printf("Error generating certificate");
-    return; 
-  }
-  Serial.println("Certificate created with success");
 
-  WiFi.begin(ssid, p4ss);
+  WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
     Serial.println("Connecting to WiFi..");
@@ -34,7 +22,7 @@ void setup() {
     
   Serial.println(WiFi.localIP());
   
-  secureServer = new HTTPSServer(cert);
+  httpServer = new HTTPServer();
    
   ResourceNode * notFoundRoute = new ResourceNode("/notfound", "GET", [](HTTPRequest * req, HTTPResponse * res){
     res->setStatusCode(404);
@@ -42,16 +30,18 @@ void setup() {
   });
  
   ResourceNode * createdRoute = new ResourceNode("/created", "GET", [](HTTPRequest * req, HTTPResponse * res){
+    //req->getParams()->getRequestParameter("on")
     res->setStatusCode(201);
-    res->println("Created");
+    res->setHeader("Content-Type", "application/json");
+    res->println("{'status':'created'}");
   });
    
-  secureServer->registerNode(notFoundRoute);
-  secureServer->registerNode(createdRoute);
+  httpServer->registerNode(notFoundRoute);
+  httpServer->registerNode(createdRoute);
  
-  secureServer->start();
+  httpServer->start();
      
-  if (secureServer->isRunning()) {
+  if (httpServer->isRunning()) {
     Serial.println("Server ready");
   } else {
     Serial.println("Server could not be started");
@@ -59,6 +49,6 @@ void setup() {
 }
    
 void loop() {
-  secureServer->loop();  
+  httpServer->loop();  
   delay(10);
 }
